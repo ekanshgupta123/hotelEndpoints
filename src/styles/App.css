@@ -10,6 +10,12 @@
 a {
   text-decoration: none;
 }
+.main-wrapper {
+  display: flex;
+  flex-direction: column;
+  padding-top: 100px; /* Adjust to match the navbar height */
+}
+
 
 .category {
   background-color: beige;
@@ -83,6 +89,8 @@ a {
     padding: 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
+    min-width: 300px;
+    
   }
   
   .date-input,
@@ -332,4 +340,56 @@ a {
   display: flex;
   justify-content: space-between;
   white-space: nowrap;
+}
+
+.suggestions-list-wrapper {
+  position: absolute;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  min-width: 300px;; /* Adjust based on your input width */
+  max-height: 200px; /* Optional: limit the height and make it scrollable */
+  overflow-y: auto;
+  z-index: 1000; /* Ensure it appears above other elements */
+}
+
+.suggestions-list {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+.suggestions-list li {
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #ddd;
+}
+
+.suggestions-list li:last-child {
+  border-bottom: none; /* Remove border from last item */
+}
+
+.suggestions-list li:hover {
+  background-color: #f0f0f0; /* Highlight on hover */
+}
+
+.suggestion-text {
+  display: flex;
+  align-items: center;
+}
+
+.suggestion-name {
+  font-weight: 500;
+}
+
+.hotel-list {
+  margin-top: 20px;
+}
+
+.hotel-item {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }

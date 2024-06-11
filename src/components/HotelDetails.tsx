@@ -1,118 +1,145 @@
-import { useRouter } from 'next/router';
 import React, { useEffect, useState } from 'react';
-import '../styles/App.css';
+import { useRouter } from 'next/router';
+import '../styles/HotelDisplay.css';
+import axios from 'axios';
 
-
-interface Guests {
-    age: null,
-      first_name: string,
-      first_name_original: string,
-      is_child: boolean,
-      last_name: string,
-      last_name_original: string
+interface HotelDetails {
+    id: string;
+    name: string;
+    address: string;
+    starRating: number;
+    amenities: string[];
+    price: number;
+    images: string[];
+    description: string;
 }
 
-interface GuestData {
-  adults_number: number,
-  children_number: number,
-  guests: Guests[]
+interface HotelSearchParams {
+    checkin: string;
+    checkout: string;
+    residency: string;
+    language: string;
+    guests: {
+        adults: number;
+        children: {
+            age: number;
+        }[];
+    }[];
+    region_id: number | null;
+    currency: string;
 }
 
-interface RoomData {
-    bedding_name: Array<string>,
-    guest_data: GuestData,
-    meal_name: string,
-    room_idx: number,
-    room_name: string
+interface HotelRoom {
+    name: string;
+    price: number;
+    type: string;
 }
 
-interface Policies {
-    end_at: null,
-    penalty: { amount: string, amount_info: null, currency_code: string },
-    start_at: null
-}
 
-interface TaxAmount {
-    amount_tax: { amount: string, currency_code: string }, 
-    is_included: boolean, 
-    name: string 
-}
-
-interface Components {
-    agreement_number: string,
-    amount_payable: { amount: string, currency_code: string },
-    amount_payable_vat: { amount: string, currency_code: string },
-    amount_payable_with_upsells: { amount: string, currency_code: string },
-    amount_refunded: { amount: string, currency_code: string },
-    amount_sell: { amount: string, currency_code: string },
-    amount_sell_b2b2c: { amount: string, currency_code: string },
-    api_auth_key_id: null,
-    cancellation_info: { free_cancellation_before: null, policies: Policies[] },
-    cancelled_at: null,
-    checkin_at: string,
-    checkout_at: string,
-    contract_slug: string,
-    created_at: string,
-    has_tickets: boolean,
-    hotel_data: { id: string, order_id: null },
-    invoice_id: string,
-    is_cancellable: boolean,
-    is_checked: boolean,
-    meta_data: { voucher_order_comment: null },
-    modified_at: string,
-    nights: number,
-    order_id: number,
-    order_type: string,
-    partner_data: { order_comment: null, order_id: string },
-    payment_data: {
-      invoice_id: number,
-      invoice_id_v2: string,
-      paid_at: null,
-      payment_by: null,
-      payment_due: string,
-      payment_pending: string,
-      payment_type: string
-    },
-    roomnights: number,
-    rooms_data: RoomData[],
-    source: string,
-    status: string,
-    supplier_data: { confirmation_id: null, name: null, order_id: string },
-    taxes: TaxAmount[],
-    total_vat: { amount: string, currency_code: string, included: boolean },
-    upsells: [],
-    user_data: { arrival_datetime: null, email: string, user_comment: null }
-  }
-
-const HotelDetails: React.FC = () => {
+const HotelPage = () => {
+    console.log("Im here in Hotel Page");
+    const [hotelData, setHotelData] = useState<HotelDetails | null>(null);
+    const [searchParams, setSearchParams] = useState<HotelSearchParams | null>(null);
+    const [rooms, setRooms] = useState<HotelRoom[]>([]); 
     const router = useRouter();
-    const { id } = router.query;
-    const [hotel, setHotel] = useState<Components | null>(null);
+   
+    useEffect(() => {
+        const fetchedHotelData = localStorage.getItem('currentHotelData');
+        const fetchedSearchParams = localStorage.getItem('searchParams');
+        if (fetchedHotelData) {
+            setHotelData(JSON.parse(fetchedHotelData));
+        }
+        if (fetchedSearchParams) {
+            setSearchParams(JSON.parse(fetchedSearchParams));
+        }
+    }, []);
 
     useEffect(() => {
-        if (id) {
-            const params = new URLSearchParams(window.location.search)
-            const objectPassed = params.get("details")
-            if (objectPassed) {
-                setHotel(JSON.parse(objectPassed))
-            }
-        }
-    }, [id]);
+        const getRooms = async () => {
+            if (!hotelData || !searchParams) return;
+            console.log("Fetching rooms with updated state");
+            
+            const body = {
+                checkin: searchParams.checkin,
+                checkout: searchParams.checkout,
+                residency: "us",
+                language: "en",
+                guests: searchParams.guests,
+                id: hotelData.id,  
+                currency: "USD"
+            };
 
-    if (!hotel) {
-        return <div>Loading...</div>;
+            console.log(body);
+
+            try {
+                const response = await axios.post("http://localhost:3002/hotels/rooms", body);
+                const hotelsData = response.data.data.hotels;
+                if (hotelsData.length > 0) {
+                    const roomDetails = hotelsData[0].rates.map((rate: { room_name: any; daily_prices: any[]; room_data_trans: { main_name: any; }; }) => ({
+                        name: rate.room_name,
+                        price: rate.daily_prices[0],
+                        type: rate.room_data_trans?.main_name // Using optional chaining in case room_data_trans is undefined
+                    }));
+                    setRooms(roomDetails);
+                }
+            } catch (error) {
+                console.error('Error fetching room data:', error);
+            }
+        };
+
+        getRooms();
+    }, [hotelData, searchParams]);
+
+    if (!hotelData) {
+        return <p>Loading...</p>;
     }
 
+
     return (
-        <div>
-            <h1>HELLO THERE</h1>
-            <h1>{hotel.invoice_id}</h1>
-            <h1>{hotel.hotel_data.id}</h1>
-            <h1>{hotel.user_data.email}</h1>
-            <h2>Rooms</h2>
-            
-        </div>
-    );
+        <>
+            <div className="hotel-container">
+                <div className="hotel-header">
+                    <h1>{hotelData.name}</h1>
+                    <p className="subtitle">{hotelData.address}</p>
+                    <div className="rating">{hotelData.starRating} Stars</div>
+                </div>
+                <div className="hotel-images">
+                    {hotelData.images.slice(0, 5).map((image, index) => (
+                        <img key={index} src={image.slice(0, 27) + "240x240" + image.slice(33)} alt={`View of ${hotelData.name}`} />
+                    ))}
+                </div>
+                <div className="hotel-details">
+                    <div className="hotel-info">
+                        <h2>About</h2>
+                        <p>{hotelData.description}</p>
+                        <h2>Price: ${hotelData.price}</h2>
+                    </div>
+                    <div className="hotel-amenities">
+                        <h2>Popular Amenities</h2>
+                        <ul className="amenities">
+                            {hotelData.amenities.slice(0, 9).map((amenity, index) => (
+                                <li key={index}>{amenity}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div className="room-container">
+                {rooms.slice(0,3).map((room, index) => (
+                    <div key={index} className="room-card">
+                        <div className="room-content">
+                            <h2 className="room-title">{room.type}</h2>
+                            <a href="#" className="details-link">More Details »</a>
+                            <div className="price-info">
+                                ${room.price} per Day / Room
+                            </div>
+                            <button className="reserve-button">Reserve</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </>
+    );    
 };
 
-export default HotelDetails;
+export default HotelPage;

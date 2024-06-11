@@ -1,6 +1,11 @@
 .search-container {
     padding: 20px;
 }
+.main-wrapper {
+    display: flex;
+    flex-direction: column;
+    padding-top: 1000px;
+}
 
 .search-form {
     margin-bottom: 20px;
