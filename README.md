@@ -18,3 +18,4 @@ git clone <repository_url>
 
 
 ```
+# hotelEndpoints
