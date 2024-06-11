@@ -12,6 +12,12 @@
 /.next/
 /out/
 
+#backend
+/backend/.env
+
+#frontend
+/src/app/api/reservation/.env
+
 # production
 /build
 
