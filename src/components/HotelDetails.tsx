@@ -94,6 +94,11 @@ const HotelPage = () => {
         return <p>Loading...</p>;
     }
 
+    const handleReservation = (idx: number) => {
+        const bookingObj: { room: HotelRoom, params: HotelSearchParams } = {room: ...rooms[idx], params: ...searchParams, specifics: ...hotelData};
+        const passedObj = JSON.stringify(bookingObj);
+        router.push(`/review-booking?details=${encodeURIComponent(passedObj)}`)
+    }
 
     return (
         <>
@@ -133,7 +138,7 @@ const HotelPage = () => {
                             <div className="price-info">
                                 ${room.price} per Day / Room
                             </div>
-                            <button className="reserve-button">Reserve</button>
+                            <button className="reserve-button" onClick={handleReservation(index)}>Reserve</button>
                         </div>
                     </div>
                 ))}
