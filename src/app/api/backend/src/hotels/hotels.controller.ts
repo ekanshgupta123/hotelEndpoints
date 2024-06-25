@@ -19,16 +19,11 @@ export class HotelsController {
     }
 
     @Post('details')
-    async fetchDetailsForMultipleHotels(@Body() { hotelIds, language }: { hotelIds: string[], language: string }): Promise<any[]> {
-        try {
-            return await Promise.all(
-                hotelIds.map(hotelId => this.hotelsService.fetchHotelDetails(hotelId, language))
-            );
-        } catch (e) {
-            throw new HttpException('Failed to fetch hotel details', HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    async fetchDetailsForMultipleHotels(@Body() body: { hotelIds: string[], language: string }): Promise<any[]> {
+        console.log("Incoming hotel IDs: ", body.hotelIds);
+        return await this.hotelsService.fetchDetailsForMultipleHotels(body.hotelIds, body.language);
     }
-
+        
     @Post('rooms') 
     async getRooms(@Body() searchParams: any): Promise<any> {
         console.log('Incoming search params:', searchParams);

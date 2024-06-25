@@ -27,36 +27,45 @@ export class HotelsService {
     }
 
     async fetchDetailsForMultipleHotels(hotelIds: string[], language: string): Promise<any[]> {
-        const requests = hotelIds.map(hotelId => 
-            this.fetchHotelDetails(hotelId, language)
-        );
-
-        return Promise.all(requests);
+    let results = [];
+    for (const hotelId of hotelIds) {
+        // Wait a bit before making each request
+        await new Promise(resolve => setTimeout(resolve, 1000)); // wait 1 second
+        try {
+            const result = await this.fetchHotelDetails(hotelId, language);
+            results.push(result);
+        } catch (error) {
+            console.error(`Failed to fetch details for hotel ID ${hotelId}: ${error}`);
+            results.push({ error: `Failed for ${hotelId}`, details: error });
+        }
     }
+    return results;
+}
 
-    async fetchHotelDetails(hotelId: string, language: string): Promise<Observable<any>> {
+
+    async fetchHotelDetails(hotelId: string, language: string): Promise<any> {
         const url = `https://api.worldota.net/api/b2b/v3/hotel/info/`;
         const keyId = this.configService.get<string>('KEY_ID');
         const apiKey = this.configService.get<string>('API_KEY');
-
+    
         const headers = {
             "Content-Type": "application/json",
             "Authorization": `Basic ${Buffer.from(`${keyId}:${apiKey}`).toString('base64')}`
         };
-
+    
         const body = {
             id: hotelId,
             language: language
         };
-
+    
         return this.httpService.post(url, body, { headers }).pipe(
             map(response => response.data),
             catchError((error) => {
                 console.error(`Error fetching hotel details for ID ${hotelId}:`, error.response?.data || error.message);
                 return throwError(new HttpException('Failed to fetch hotel details', HttpStatus.INTERNAL_SERVER_ERROR));
             })
-        );
-    }
+        ).toPromise();
+    }    
 
     async searchHotels(searchParams: any): Promise<any> {
         const keyId = this.configService.get<string>('KEY_ID');

@@ -241,6 +241,7 @@ const Search = () => {
                 console.log("Full response data:", response.data.data.hotels);
                 const hotels = response.data.data.hotels;
                 console.log("Total hotels found: ", hotels.length);
+                // console.log("Hotel id: ", hotels[0].id);
                 await processHotels(hotels);
                 setHotels(hotels);
             } else {
@@ -256,12 +257,11 @@ const Search = () => {
     };
     
     const processHotels = async (hotels: any[]) => {
-        const hotelDetailsPromises = hotels.map((hotel, index) =>
-            fetchHotelDetails(hotel.id, hotel.rates[0].daily_prices[0])
-        );
-        await Promise.all(hotelDetailsPromises);
+        const hotelIds = hotels.map(hotel => hotel.id); // Collect all hotel IDs
+        console.log("Processing hotel IDs: ", hotelIds);
+        await fetchHotelDetails(hotelIds); // Pass all IDs at once
     };
-    
+        
     const handleErrors = (error: unknown) => {
         if (axios.isCancel(error)) {
             console.log('Request canceled:', error.message);
@@ -381,11 +381,12 @@ const Search = () => {
         //     await retryFetchHotelDetails(hotelId, index, 1, price);
         // };
 
-        const fetchHotelDetails = async (hotelId: string, price: number) => {
+        const fetchHotelDetails = async (hotelIds: string[], language: string = "en") => {
             try {
+                console.log("Hotel ID in fetchHotelDetails: ", hotelId);
                 const response = await axios.post(`http://localhost:3002/hotels/details`, {
-                    id: hotelId,
-                    language: "en"
+                    hotelIds,
+                    language
                 });
                 const data = response.data.data; 
         
