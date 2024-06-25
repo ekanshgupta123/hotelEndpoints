@@ -1,15 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { abortOnError: false });
+  const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: true,
-    methods: ["GET", "POST", "DELETE"],
-    credentials: true,
+    origin: 'http://localhost:3000', // Allow requests from this origin
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true, // Allow credentials such as cookies, authorization headers, etc.
   });
-  app.use(cookieParser());
-  await app.listen(5001);
+  const port = process.env.PORT || 3002;
+  await app.listen(port);
+  console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();

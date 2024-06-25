@@ -100,7 +100,7 @@ const Reservation: React.FC = () => {
         const apiCall = async (): Promise<void> => {
             try {
                 const request: AxiosResponse = await 
-                axios.get('http://localhost:5001/reservation/list', {
+                axios.get('http://localhost:3002/reservation/list', {
                   headers: { 'Content-Type': 'application/json' },
                   withCredentials: true,
                 });
@@ -122,7 +122,7 @@ const Reservation: React.FC = () => {
         const reservationLookup = async (): Promise<void> => {
             if (hotel) {
                 try {
-                    const request: AxiosResponse = await axios.get('http://localhost:5001/reservation/details', {
+                    const request: AxiosResponse = await axios.get('http://localhost:3002/reservation/details', {
                         params: { hotel: hotel, name: user },
                         headers: { 'Content-Type': 'application/json' },
                         withCredentials: true
@@ -143,7 +143,7 @@ const Reservation: React.FC = () => {
     };
 
     const flushCache = async () => {
-        await axios.delete('http://localhost:5001/reservation/clear', {
+        await axios.delete('http://localhost:3002/reservation/clear', {
             headers: { 'Content-Type': 'application/json' },
             withCredentials: true
         });

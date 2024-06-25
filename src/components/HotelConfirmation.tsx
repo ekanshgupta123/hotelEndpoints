@@ -92,7 +92,7 @@ const Confirm = () => {
 
     const handleCancellation = async (): Promise<void | null> => {
         setCancel('Processing...');
-        const cancelCall: AxiosResponse<{ status: string, data: string }> = await axios.delete('http://localhost:5001/booking/cancel', {
+        const cancelCall: AxiosResponse<{ status: string, data: string }> = await axios.delete('http://localhost:3002/booking/cancel', {
             headers: { 'Content-Type': 'application/json' ,'pID': addData.pID },
             withCredentials: true
         });

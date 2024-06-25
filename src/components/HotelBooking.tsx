@@ -3,12 +3,24 @@ import { useRouter } from 'next/router';
 import '../styles/App.css';
 import Navbar from './Navbar'
 import HotelDisplay from './HotelDisplay';
+import { Alert } from '@mui/material';
 
 import axios, { CancelTokenSource }from 'axios';
 import rateLimit from 'axios-rate-limit';
+import pLimit from 'p-limit';
+
+const limit = pLimit(5);
 
 // Create an Axios instance
 const http = axios.create();
+
+interface QueueItem {
+    hotelId: string;
+    index: number;
+    price: number;
+    resolve: (value?: void | PromiseLike<void>) => void;
+    reject: (reason?: any) => void;
+}
 
 
 // Apply rate limiting to your Axios instance
@@ -163,6 +175,7 @@ const Search = () => {
         try {
             const response = await fetch("/api/search/proxy", requestOptions);
             const result = await response.json();
+            console.log("Result:", result);
     
             if (result.data && result.data.regions) {
                 const cities = result.data.regions.filter((region: any) => region.type === 'City');
@@ -190,24 +203,21 @@ const Search = () => {
         fetchSuggestions();
     }, [searchParams.destination]);
 
-
     const searchHotels = async () => {
         console.log("Loading...");
         setIsLoading(true);
         setError(null);  
-
+    
+        // Cancel previous requests
         if (cancelTokenRef.current) {
             cancelTokenRef.current.cancel("Canceled due to new request");
         }
-
-        // Create a new CancelToken
         cancelTokenRef.current = axios.CancelToken.source();
     
         const guests = [{
             adults: Number(searchParams.adults),
             children: children?.map(child => ({ age: child.age })) || []
         }];
-
     
         const body = {
             checkin: searchParams.checkInDate,
@@ -218,87 +228,232 @@ const Search = () => {
             region_id: regionId,
             currency: "USD"
         };
+    
         setHotelSearchParams(body);
-
-
     
         try {
-            const response = await maxRPS.post("http://localhost:5001/hotels/search", body, {
+            console.log(body);
+            const response = await axios.post("http://localhost:3002/hotels/search", body, {
                 cancelToken: cancelTokenRef.current.token
             });
+            console.log("Response: ", response);
             if (response.data && response.data.data && response.data.data.hotels) {
-                // response.data.data.hotels.forEach(async (hotel: { id: string }) => {
-                //     // console.log("Hotel ID:", hotel.id);
-                //     await fetchHotelDetails(hotel.id);
-                // });
+                console.log("Full response data:", response.data.data.hotels);
                 const hotels = response.data.data.hotels;
-                for (let i = 0; i < hotels.length; i++) {
-                    console.log(`Fetching details for hotel ${i + 1}/${hotels.length}: ${hotels[i].id}`);
-                    await fetchHotelDetails(hotels[i].id, i, hotels[i].rates[0].daily_prices[0]);
-                }      
-            setHotels(response.data.data.hotels);
+                console.log("Total hotels found: ", hotels.length);
+                await processHotels(hotels);
+                setHotels(hotels);
             } else {
                 console.log("No hotels data found");
                 setHotels([]);
             }
         } catch (error) {
-            if (axios.isAxiosError(error)) {
-                console.error('Error fetching hotels:', error.response ? error.response.data : 'Unknown error');
-                setError(`Failed to fetch hotels: ${error.response ? error.response.data : 'Unknown error'}`);
-            } else {
-                console.error('Unexpected error:', error);
-                setError('An unexpected error occurred');
-            }
+            handleErrors(error);
         } finally {
-            console.log("Loading complete.");
             setIsLoading(false);
+            console.log("Loading complete.");
         }
     };
     
-
-    const delay = (ms: number | undefined) => new Promise(resolve => setTimeout(resolve, ms));
-
-    const fetchHotelDetails = async (hotelId: any, index: number, price: number) => {
-        await retryFetchHotelDetails(hotelId, index, 1, price);
+    const processHotels = async (hotels: any[]) => {
+        const hotelDetailsPromises = hotels.map((hotel, index) =>
+            fetchHotelDetails(hotel.id, hotel.rates[0].daily_prices[0])
+        );
+        await Promise.all(hotelDetailsPromises);
     };
-
-    const retryFetchHotelDetails = async (hotelId: any, index: number, attempt: number, price: number) => {
-        try {
-
-            await delay(index * 65 + 500 * (attempt - 1));
-            console.log(`Attempting to fetch details for ${hotelId}, attempt ${attempt}`);
-            
-            const response = await axios.post(`http://localhost:5001/hotels/details`, {
-                id: hotelId,
-                language: "en"
-            });
-
-            const data = response.data.data;
-            console.log(data.room_groups);
-            const details = {
-                id: data.id,
-                name: data.name,
-                address: data.address,
-                starRating: data.star_rating,
-                amenities: data.amenity_groups.flatMap((group: { amenities: any; }) => group.amenities),
-                price: price,
-                images: data.images,
-                description: data.description_struct.map((item: { paragraphs: any[]; }) => item.paragraphs.join(' ')).join('\n\n'),
-                main_name: data.room_groups.map((group: { name_struct: { main_name: any; }; }) => group.name_struct.main_name),
-                room_images: data.room_groups.map((group: { images: any}) =>  group.images.length > 0 ? group.images[0].replace('{size}', '240x240') : null)
-            };
-            setHotelDetails(prevDetails => [...prevDetails, details]);
-            console.log("Details for hotel", hotelId, details);
-        } catch (error) {
-            console.error(`Attempt ${attempt} failed for hotel ${hotelId}:`, error);
-            if (attempt < 3) {
-                console.log(`Retrying for ${hotelId}...`);
-                await retryFetchHotelDetails(hotelId, index, attempt + 1, price);
-            } else {
-                console.error(`Failed to fetch details for hotel ${hotelId} after 3 attempts`, error);
-            }
+    
+    const handleErrors = (error: unknown) => {
+        if (axios.isCancel(error)) {
+            console.log('Request canceled:', error.message);
+        } else if (error.response) {
+            console.error('Error fetching hotels:', error.response.data);
+            setError(`Failed to fetch hotels: ${error.response.data.message}`);
+        } else {
+            console.error('Unexpected error:', error);
+            setError('An unexpected error occurred');
         }
     };
+
+    // const searchHotels = async () => {
+    //     console.log("Loading...");
+    //     setIsLoading(true);
+    //     setError(null);  
+
+    //     if (cancelTokenRef.current) {
+    //         cancelTokenRef.current.cancel("Canceled due to new request");
+    //     }
+
+    //     cancelTokenRef.current = axios.CancelToken.source();
+    
+    //     const guests = [{
+    //         adults: Number(searchParams.adults),
+    //         children: children?.map(child => ({ age: child.age })) || []
+    //     }];
+
+    
+    //     const body = {
+    //         checkin: searchParams.checkInDate,
+    //         checkout: searchParams.checkOutDate,
+    //         residency: "us",
+    //         language: "en",
+    //         guests: guests,
+    //         region_id: regionId,
+    //         currency: "USD"
+    //     };
+    //     setHotelSearchParams(body);
+
+    //     const MAX_CONCURRENT_REQUESTS = 5;
+    //     const requestQueue: QueueItem[] = [];
+    //     let activeRequests = 0;
+
+    //     const processQueue = async () => {
+    //         if (requestQueue.length === 0 || activeRequests >= MAX_CONCURRENT_REQUESTS) {
+    //             return;
+    //         }
+
+    //         activeRequests++;
+    //         const request = requestQueue.shift();
+    //         if (!request) {
+    //             activeRequests--;
+    //             return;
+    //         }
+
+    //         const { hotelId, index, price, resolve, reject } = request;
+
+    //         try {
+    //             await fetchHotelDetails(hotelId, price);
+    //             resolve();
+    //         } catch (error) {
+    //             reject(error);
+    //         } finally {
+    //             activeRequests--;
+    //             processQueue(); 
+    //         }
+    //     };
+
+    //     const queueRequest = (hotelId: any, index: any, price: any) => {
+    //         return new Promise((resolve, reject) => {
+    //             requestQueue.push({ hotelId, index, price, resolve, reject });
+    //             processQueue();
+    //         });
+    //     };
+    
+    //     try {
+    //         console.log(body);
+    //         const response = await maxRPS.post("http://localhost:3002/hotels/search", body, {
+    //             cancelToken: cancelTokenRef.current.token
+    //         });
+    //         console.log("Response: ", response);
+    //         if (response.data && response.data.data && response.data.data.hotels) {
+    //             console.log("Full response data:", response.data.data.hotels);
+        
+    //             const hotels = response.data.data.hotels;
+        
+    //             const hotelDetailsPromises = hotels.map((hotel: { id: any; rates: { daily_prices: any[]; }[]; }, index: any) =>
+    //                 queueRequest(hotel.id, index, hotel.rates[0].daily_prices[0])
+    //             );
+        
+    //             await Promise.all(hotelDetailsPromises);
+    //             setHotels(response.data.data.hotels);
+    //         } else {
+    //             console.log("No hotels data found");
+    //             setHotels([]);
+    //         }
+    //     } catch (error) {
+    //         if (axios.isAxiosError(error)) {
+    //             console.error('Error fetching hotels:', error);
+    //             const errorMessage = error.response ? error.response.data : error.message;
+    //             setError(`Failed to fetch hotels: ${errorMessage}`);
+    //         } else {
+    //             console.error('Unexpected error:', error);
+    //             setError('An unexpected error occurred');
+    //         }
+    //     } finally {
+    //         console.log("Loading complete.");
+    //         setIsLoading(false);
+    //     }
+    //     };
+        
+        
+        // const delay = (ms: number | undefined) => new Promise(resolve => setTimeout(resolve, ms));
+        
+        // const fetchHotelDetails = async (hotelId: any, index: any, price: any) => {
+        //     await retryFetchHotelDetails(hotelId, index, 1, price);
+        // };
+
+        const fetchHotelDetails = async (hotelId: string, price: number) => {
+            try {
+                const response = await axios.post(`http://localhost:3002/hotels/details`, {
+                    id: hotelId,
+                    language: "en"
+                });
+                const data = response.data.data; 
+        
+                console.log(data.room_groups);
+
+                const details = {
+                    id: data.id,
+                    name: data.name,
+                    address: data.address,
+                    starRating: data.star_rating,
+                    amenities: data.amenity_groups.flatMap((group: { amenities: any; }) => group.amenities),
+                    price: price, 
+                    images: data.images,
+                    description: data.description_struct.map((item: { paragraphs: any[]; }) => item.paragraphs.join(' ')).join('\n\n'),
+                    main_name: data.room_groups.map((group: { name_struct: { main_name: any; }; }) => group.name_struct.main_name),
+                    room_images: data.room_groups.map((group: { images: string | any[]; }) => group.images.length > 0 ? group.images[0].replace('{size}', '240x240') : null)
+                };
+        
+                console.log("Details: ", details);
+        
+                setHotelDetails(prevDetails => [...prevDetails, details]);
+        
+                console.log("Details for hotel", hotelId, details);
+            } catch (error) {
+                console.error('Failed to fetch hotel details:', error);
+            }
+        };       
+        
+        
+        // const retryFetchHotelDetails = async (hotelId: any, index: number, attempt: number, price: any) => {
+        //     try {
+        //         await delay(index * 65 + 500 * (attempt - 1));
+        //         console.log(`Attempting to fetch details for ${hotelId}, attempt ${attempt}`);
+                
+        //         const response = await axios.post(`http://localhost:3002/hotels/details`, {
+        //             id: hotelId,
+        //             language: "en"
+        //         });
+        
+        //         const data = response.data.data;
+        //         console.log(data.room_groups);
+        //         const details = {
+        //             id: data.id,
+        //             name: data.name,
+        //             address: data.address,
+        //             starRating: data.star_rating,
+        //             amenities: data.amenity_groups.flatMap((group: { amenities: any; }) => group.amenities),
+        //             price: price,
+        //             images: data.images,
+        //             description: data.description_struct.map((item: { paragraphs: any[]; }) => item.paragraphs.join(' ')).join('\n\n'),
+        //             main_name: data.room_groups.map((group: { name_struct: { main_name: any; }; }) => group.name_struct.main_name),
+        //             room_images: data.room_groups.map((group: { images: string | any[]; }) => group.images.length > 0 ? group.images[0].replace('{size}', '240x240') : null)
+        //         };
+        //         console.log("Details: ", details);
+        
+        //         setHotelDetails(prevDetails => [...prevDetails, details]);
+        //         console.log("Details for hotel", hotelId, details);
+        //     } catch (error) {
+        //         console.error(`Attempt ${attempt} failed for hotel ${hotelId}:`, error);
+        //         if (attempt < 3) {
+        //             console.log(`Retrying for ${hotelId}...`);
+        //             await retryFetchHotelDetails(hotelId, index, attempt + 1, price);
+        //         } else {
+        //             console.error(`Failed to fetch details for hotel ${hotelId} after 3 attempts`, error);
+        //         }
+        //     }
+        // };
+        
 
     const handleSuggestionClick = (region: Region) => {
         setSearchParams(prevState => ({
@@ -306,21 +461,28 @@ const Search = () => {
             destination: region.name
         }));
         setRegionId(region.id);
+        console.log(region.id);
         setSuggestions([]);  
     };
 
 
     const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (!searchParams.destination || !searchParams.checkInDate || !searchParams.checkOutDate) {
+            setError("Please fill in all required fields.");
+            return;
+        }    
         setHotelDetails([]);
         setSearchParams({ ...searchParams });
         await searchHotels();
     };
+    const today = new Date().toISOString().split('T')[0];
+    const minCheckOutDate = searchParams.checkInDate ? new Date(new Date(searchParams.checkInDate).getTime() + 86400000).toISOString().split('T')[0] : today;
 
 
     return (
         <div className="main-wrapper">
-            {/* <header><Navbar /></header> */}
+            <header><Navbar /></header>
             <div className="search-container">
             <form className="search-form" onSubmit={onSubmit}>
                 <div className="form-row">
@@ -353,6 +515,7 @@ const Search = () => {
                         name="checkInDate"
                         value={searchParams.checkInDate}
                         onChange={handleInputChange}
+                        min={today}
                     />
                     <input
                         className="date-input"
@@ -360,6 +523,7 @@ const Search = () => {
                         name="checkOutDate"
                         value={searchParams.checkOutDate}
                         onChange={handleInputChange}
+                        min={minCheckOutDate}
                     />
                 <div className="input-group">
                         <span className="input-label">Adults</span>
@@ -373,19 +537,25 @@ const Search = () => {
                         <input type="text" readOnly value={children.length} aria-label="Children" />
                         <button onClick={incrementChildren}>+</button>
                     </div>
-                    <button type="submit" className="search-button">Search</button>
+                    <button type="submit" className="search-button" disabled={isLoading}> Search </button>
                 </div>
             </form>
             {isLoading && <p>Loading...</p>}
-            {error && <p>Error: {error}</p>}
+            {error && (
+                <Alert severity="error">
+                    Error: {error}
+                </Alert>
+            )}
             <div className="hotel-list-container">
             {hotelDetails.map((hotel) => (
-                <HotelDisplay key={hotel.id} hotel={hotel} searchParams={hotelSearchParams} />
+                <HotelDisplay key={hotel.id} hotel={hotel} searchParams = {hotelSearchParams}/>
             ))}
         </div>
             </div>
         </div>
     );
+    
+    
 }
 
 export default Search;

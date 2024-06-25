@@ -1,24 +1,20 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es6", // Updated to support ES6 features natively
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmit": true,
+    "noEmit": false, // Changed to allow JS file emission
     "esModuleInterop": true,
-    "module": "commonjs",
+    "module": "ESNext", // Changed from CommonJS to ESNext for ES module support
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "outDir": "./dist", // Specifies the output directory for compiled files
     "paths": {
       "@/*": ["./src/*"]
     }

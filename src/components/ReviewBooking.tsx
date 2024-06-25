@@ -138,7 +138,7 @@ const ReviewBooking: React.FC = () => {
     const handleBooking = async (): Promise<void> => {
         try {
             setStatus('Please wait a moment.');
-            const bookCall: AxiosResponse<{ status: string, data: BookingResponse }> = await axios.post('http://localhost:5001/booking/create', {
+            const bookCall: AxiosResponse<{ status: string, data: BookingResponse }> = await axios.post('http://localhost:3002/booking/create', {
                 id: "test_hotel_do_not_book" || specifics.id,
                 checkin: parameters.checkin,
                 checkout: parameters.checkout,
@@ -175,7 +175,7 @@ const ReviewBooking: React.FC = () => {
             if (partner) {
                 setPid(partner);
             };
-            const statusCall: AxiosResponse<{ status: string, data: string }> = await axios.get('http://localhost:5001/booking/status', {
+            const statusCall: AxiosResponse<{ status: string, data: string }> = await axios.get('http://localhost:3002/booking/status', {
                 params: { pID: partner },  
                 headers: { 'Content-Type': 'application/json' },
                 withCredentials: true
@@ -210,7 +210,7 @@ const ReviewBooking: React.FC = () => {
             "is_cvc_required": code,
             "credit_card_data_core": dataCore
         };
-        const creditCall: AxiosResponse<{ status: string, data: string }> = await axios.post('http://localhost:5001/booking/credit', 
+        const creditCall: AxiosResponse<{ status: string, data: string }> = await axios.post('http://localhost:3002/booking/credit', 
             body, 
             { headers: { 'Content-Type': 'application/json' }, 
             withCredentials: true

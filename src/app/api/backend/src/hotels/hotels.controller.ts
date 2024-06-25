@@ -1,34 +1,43 @@
-import { Body, Controller, Post, Res, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Post, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { HotelsService } from './hotels.service';
-import { Response } from 'express';
+import { Observable } from 'rxjs';
 
 @Controller('hotels')
 export class HotelsController {
     constructor(private hotelsService: HotelsService) {}
 
     @Post('search')
-    async searchHotels(@Body() searchParams: any, @Res() res: Response) {
+    async searchHotels(@Body() searchParams: any): Promise<any> {
+        console.log('Incoming search params:', searchParams);
         try {
             const result = await this.hotelsService.searchHotels(searchParams);
-            res.status(HttpStatus.OK).json(result);
+            console.log('Search result:', result);
+            return result;
         } catch (e) {
-            res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: e.message });
+            throw new HttpException(e.message, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @Post('details')
-    async getHotelDetails(@Body('id') hotelId: string, @Body('language') language: string = 'en') {
-        return this.hotelsService.fetchHotelDetails(hotelId, language);
-    }
-
-    @Post('rooms') 
-    async getRooms(@Body() searchParams: any, @Res() res: Response) {
+    async fetchDetailsForMultipleHotels(@Body() { hotelIds, language }: { hotelIds: string[], language: string }): Promise<any[]> {
         try {
-            const result = await this.hotelsService.fetchHotelRooms(searchParams);
-            res.status(HttpStatus.OK).json(result);
-        } catch(e) {
-            res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: e.message });
+            return await Promise.all(
+                hotelIds.map(hotelId => this.hotelsService.fetchHotelDetails(hotelId, language))
+            );
+        } catch (e) {
+            throw new HttpException('Failed to fetch hotel details', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
+    @Post('rooms') 
+    async getRooms(@Body() searchParams: any): Promise<any> {
+        console.log('Incoming search params:', searchParams);
+        try {
+            const result = await this.hotelsService.fetchHotelRooms(searchParams);
+            console.log('Rooms fetched:', result);
+            return result;
+        } catch (e) {
+            throw new HttpException('Failed to fetch hotel rooms', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

@@ -1,16 +1,18 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { catchError, map } from 'rxjs/operators';
-import { throwError } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import * as dotenv from 'dotenv';
 import { ConfigService } from '@nestjs/config';
-import { lastValueFrom } from 'rxjs';
+
+dotenv.config();
 
 @Injectable()
 export class HotelsService {
-    constructor(private readonly httpService: HttpService,
+    constructor(
+        private httpService: HttpService,
         private configService: ConfigService
-    ) {}
-
+      ) {}
     private convertToISO8601Format(dateString: string): string {
         if (dateString.includes('/')) {
             const [month, day, year] = dateString.split('/');
@@ -24,15 +26,50 @@ export class HotelsService {
         }
     }
 
+    async fetchDetailsForMultipleHotels(hotelIds: string[], language: string): Promise<any[]> {
+        const requests = hotelIds.map(hotelId => 
+            this.fetchHotelDetails(hotelId, language)
+        );
+
+        return Promise.all(requests);
+    }
+
+    async fetchHotelDetails(hotelId: string, language: string): Promise<Observable<any>> {
+        const url = `https://api.worldota.net/api/b2b/v3/hotel/info/`;
+        const keyId = this.configService.get<string>('KEY_ID');
+        const apiKey = this.configService.get<string>('API_KEY');
+
+        const headers = {
+            "Content-Type": "application/json",
+            "Authorization": `Basic ${Buffer.from(`${keyId}:${apiKey}`).toString('base64')}`
+        };
+
+        const body = {
+            id: hotelId,
+            language: language
+        };
+
+        return this.httpService.post(url, body, { headers }).pipe(
+            map(response => response.data),
+            catchError((error) => {
+                console.error(`Error fetching hotel details for ID ${hotelId}:`, error.response?.data || error.message);
+                return throwError(new HttpException('Failed to fetch hotel details', HttpStatus.INTERNAL_SERVER_ERROR));
+            })
+        );
+    }
+
     async searchHotels(searchParams: any): Promise<any> {
         const keyId = this.configService.get<string>('KEY_ID');
-        const apiKey = this.configService.get<string>('API_KEY');        const { residency, language, guests, region_id, currency } = searchParams;
+        const apiKey = this.configService.get<string>('API_KEY');
+        console.log("im here");
+        const { residency, language, guests, region_id, currency } = searchParams;
 
         const checkin = this.convertToISO8601Format(searchParams.checkin);
         const checkout = this.convertToISO8601Format(searchParams.checkout);
         
         searchParams.guests.forEach((guest: any, index: number) => {
             const childrenAges = guest.children.map((child: { age: number }) => child.age);
+            console.log(childrenAges);
         });
         
         const requestBody = {
@@ -48,54 +85,58 @@ export class HotelsService {
             currency
         };
 
-        const requestOptions = {
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Basic ${Buffer.from(`${keyId}:${apiKey}`).toString('base64')}`
-            },
-            data: requestBody
-        };
-
-        const response = this.httpService.post('https://api.worldota.net/api/b2b/v3/search/serp/region/', requestBody, { headers: requestOptions.headers })
-            .pipe(
-                map(res => res.data)
-            );
-        
-        const result = await lastValueFrom(response);
-        return result;
-    }
-
-    async fetchHotelDetails(hotelId: string, language: string): Promise<any> {
-        const url = `https://api.worldota.net/api/b2b/v3/hotel/info/`;
-        const keyId = this.configService.get<string>('KEY_ID');
-        const apiKey = this.configService.get<string>('API_KEY');
+        console.log("Request Body:", JSON.stringify(requestBody, null, 2));  
 
         const headers = {
             "Content-Type": "application/json",
             "Authorization": `Basic ${Buffer.from(`${keyId}:${apiKey}`).toString('base64')}`
         };
 
-        
+        console.log("Request Headers:", JSON.stringify(headers, null, 2)); 
 
-        const body = {
-            id: hotelId,
-            language: language
-        };
-
-        return this.httpService.post(url, body, { headers }).pipe(
-            map(response => response.data),
-            catchError((error) => {
-                console.error(`Error fetching hotel details for ID ${hotelId}:`, error.response?.data || error.message);
-                return throwError(new HttpException('Failed to fetch hotel details', HttpStatus.INTERNAL_SERVER_ERROR));
-            })
-            
-        ).toPromise();
+        return this.httpService.post('https://api.worldota.net/api/b2b/v3/search/serp/region/', requestBody, { headers })
+            .pipe(
+                map(response => response.data),
+                catchError((error) => {
+                    console.error('Error in searchHotels:', error.response?.data || error.message);
+                    return throwError(new HttpException('Failed to fetch hotels', HttpStatus.INTERNAL_SERVER_ERROR));
+                })
+            )
+            .toPromise();
     }
-    
+
+    // async fetchHotelDetails(hotelId: string, language: string): Promise<any> {
+    //     console.log(`Fetching details for hotel ID: ${hotelId}, Language: ${language}`);
+
+    //     const url = `https://api.worldota.net/api/b2b/v3/hotel/info/`;
+    //     const keyId = this.configService.get<string>('KEY_ID');
+    //     const apiKey = this.configService.get<string>('API_KEY');
+
+    //     const headers = {
+    //         "Content-Type": "application/json",
+    //         "Authorization": `Basic ${Buffer.from(`${keyId}:${apiKey}`).toString('base64')}`
+    //     };
+
+    //     const body = {
+    //         id: hotelId,
+    //         language: language
+    //     };
+
+    //     return this.httpService.post(url, body, { headers })
+    //         .pipe(
+    //             map(response => response.data),
+    //             catchError((error) => {
+    //                 console.error(`Error fetching hotel details for ID ${hotelId}:`, error.response?.data || error.message);
+    //                 return throwError(new HttpException('Failed to fetch hotel details', HttpStatus.INTERNAL_SERVER_ERROR));
+    //             })
+    //         )
+    //         .toPromise();
+    // }
+
     async fetchHotelRooms(searchParams: any): Promise<any> {
         const keyId = this.configService.get<string>('KEY_ID');
         const apiKey = this.configService.get<string>('API_KEY');
+        console.log("im inside fetchHotelRooms");
 
         const { residency, language, guests, id, currency } = searchParams;
 
@@ -104,6 +145,7 @@ export class HotelsService {
 
         searchParams.guests.forEach((guest: any, index: number) => {
             const childrenAges = guest.children.map((child: { age: number }) => child.age);
+            console.log(childrenAges);
         });
 
         const requestBody = {
@@ -119,18 +161,22 @@ export class HotelsService {
             currency
         };
 
-        const requestOptions = {
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Basic ${Buffer.from(`${keyId}:${apiKey}`).toString('base64')}`
-            },
-            data: requestBody
+        console.log("Request Body:", JSON.stringify(requestBody, null, 2));  
+
+        const headers = {
+            "Content-Type": "application/json",
+            "Authorization": `Basic ${Buffer.from(`${keyId}:${apiKey}`).toString('base64')}`
         };
 
-        return this.httpService.post('https://api.worldota.net/api/b2b/v3/search/hp/', requestBody, { headers: requestOptions.headers })
+        console.log("Request Headers:", JSON.stringify(headers, null, 2)); 
+
+        return this.httpService.post('https://api.worldota.net/api/b2b/v3/search/hp/', requestBody, { headers })
             .pipe(
-                map(response => response.data)
+                map(response => response.data),
+                catchError((error) => {
+                    console.error('Error in fetchHotelRooms:', error.response?.data || error.message);
+                    return throwError(new HttpException('Failed to fetch hotel rooms', HttpStatus.INTERNAL_SERVER_ERROR));
+                })
             )
             .toPromise();
     }

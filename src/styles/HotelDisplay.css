@@ -63,3 +63,12 @@
 .hotel-header, .hotel-images, .hotel-details, .room-container {
     margin-bottom: 20px;
 }
+
+.hotel-item {
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for the scaling effect and box-shadow */
+    cursor: pointer; /* Change cursor to pointer to indicate clickability */
+}
+
+.hotel-item:hover {
+    box-shadow: 0 10px 8px rgba(0, 0, 0, 0.2); /* Add a shadow for better visibility */
+}

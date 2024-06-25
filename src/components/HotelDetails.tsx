@@ -42,7 +42,7 @@ interface HotelRoom {
     name: string;
     price: number;
     type: string;
-    images: string[];
+    images: string;
 }
 
 const HotelPage = () => {
@@ -62,7 +62,7 @@ const HotelPage = () => {
         if (fetchedSearchParams) {
             setSearchParams(JSON.parse(fetchedSearchParams));
             console.log('Fetched searchParams:', JSON.parse(fetchedSearchParams)); // Log the fetched search params
-        };
+        }
     }, []);
 
     useEffect(() => {
@@ -81,37 +81,39 @@ const HotelPage = () => {
             };
 
             console.log('Request body:', body);
+            const hashmap: { [key: string]: string } = {};
 
             try {
-                const response = await axios.post("http://localhost:5001/hotels/rooms", body);
+                const response = await axios.post("http://localhost:3002/hotels/rooms", body);
                 const hotelsData = response.data.data.hotels;
                 if (hotelsData.length > 0) {
                     console.log('API response hotelsData:', hotelsData); // Log the response data
 
                     const updatedHotelData = { ...hotelData, room_groups: hotelsData[0].room_groups }; // Ensure room_groups are set
                     setHotelData(updatedHotelData);
-                    console.log('Updated hotelData with room_groups:', updatedHotelData); // Log the updated hotel data
+                    console.log('Updated hotelData with main_name:', updatedHotelData.main_name); // L og the updated hotel data
+                    console.log('Updated hotelData with room_images:', updatedHotelData.room_images);
+                    updatedHotelData.main_name.forEach((name: string | number, index: string | number) => {
+                        hashmap[name] = updatedHotelData.room_images[index];
+                    });
+                    console.log('Created hashmap:', hashmap);
 
                     const roomDetails = hotelsData[0].rates.map((rate: { room_name: string; daily_prices: number[]; room_data_trans: { main_name: string }; }) => {
                         const rateMainName = rate.room_data_trans.main_name.trim();
-                        console.log('rate.room_data_trans.main_name:', rateMainName); // Log main_name
+                        console.log('rate.room_data_trans.main_name:', rateMainName); 
 
-                        const matchedHotelRoom = updatedHotelData.room_groups?.find((group: { name_struct: { main_name: string; }; }) => {
-                            const groupMainName = group.name_struct.main_name.trim();
-                            console.log('Comparing:', rateMainName, 'with:', groupMainName); // Log both values
-                            return groupMainName === rateMainName;
-                        });
-
-                        console.log('matchedHotelRoom:', matchedHotelRoom); // Log matchedHotelRoom
+                        const roomImage = hashmap[rateMainName];
+                        console.log(roomImage);
+                        
                         return {
                             name: rate.room_name,
                             price: rate.daily_prices[0],
                             type: rateMainName,
-                            images: matchedHotelRoom ? matchedHotelRoom.images.map((img: string) => img.replace('{size}', '240x240')) : []
+                            images: roomImage
                         };
                     });
                     setRooms(roomDetails);
-                    console.log('Room details:', roomDetails); // Log the room details
+                    console.log('Room details:', roomDetails);
                 }
             } catch (error) {
                 console.error('Error fetching room data:', error);
@@ -123,7 +125,7 @@ const HotelPage = () => {
 
     if (!hotelData) {
         return <p>Loading...</p>;
-    };
+    }
 
     const handleReservation = (idx: number) => {
         localStorage.setItem('currentRoom', JSON.stringify(rooms[idx]));
@@ -131,13 +133,14 @@ const HotelPage = () => {
         router.push(`/review-booking?id=${id}`)
     };
 
+
     return (
         <>
             <div className="hotel-container">
                 <div className="hotel-header">
                     <h1>{hotelData.name}</h1>
                     <p className="subtitle">{hotelData.address}</p>
-                    <div className="rating">{hotelData.starRating} Stars</div>
+                    <div className="rating">{Array(hotelData.starRating).fill('⭐').join('')}</div>
                 </div>
                 <div className="hotel-images">
                     {hotelData.images.slice(0, 5).map((image, index) => (
@@ -166,15 +169,12 @@ const HotelPage = () => {
                         <div className="room-content">
                             <h2 className="room-title">{room.name}</h2>
                             <div className="room-images">
-                                {room.images.slice(0, 3).map((image, idx) => (
-                                    <img key={idx} src={image} alt={`Room view ${room.name}`} />
-                                ))}
+                                <img key={index} src={room.images} alt={`Room view ${room.name}`} />
                             </div>
-                            <a href="#" className="details-link">More Details »</a>
                             <div className="price-info">
                                 ${room.price} per Day / Room
                             </div>
-                            <button className="reserve-button" onClick={() => handleReservation(index)}>Reserve</button>
+                           <button className="reserve-button" onClick={() => handleReservation(index)}>Reserve</button>
                         </div>
                     </div>
                 ))}
