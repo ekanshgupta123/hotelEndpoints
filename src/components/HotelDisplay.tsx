@@ -41,9 +41,11 @@ const HotelDisplay: React.FC<HotelDisplayProps> = ({ hotel, searchParams }) => {
         window.open(`/hotel/${hotelId}`, '_blank');
     };
 
-  
-    let image = hotel.images[0];
-    let imageResult = image.slice(0, 27) + "240x240" + image.slice(33);
+    const placeholderImage = 'url_to_placeholder_image'; // Replace with the actual URL of your placeholder image
+    const hasImages = hotel.images && hotel.images.length > 0;
+    const image = hasImages ? hotel.images[0] : placeholderImage;
+    const imageResult = hasImages ? image.slice(0, 27) + "240x240" + image.slice(33) : placeholderImage;
+
     return (
         <div className="hotel-item" onClick={() => handleCardClick(hotel.id, hotel, searchParams)}>
             <h3>{hotel.name}</h3>

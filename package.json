@@ -17,6 +17,7 @@
     "axios": "^1.7.2",
     "axios-rate-limit": "^1.4.0",
     "bcrypt": "^5.1.1",
+    "bottleneck": "^2.19.5",
     "config": "^3.3.11",
     "dotenv": "^16.4.5",
     "eslint": "8.44.0",

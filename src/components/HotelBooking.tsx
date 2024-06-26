@@ -257,8 +257,11 @@ const Search = () => {
     };
     
     const processHotels = async (hotels: any[]) => {
-        const hotelIds = hotels.map(hotel => hotel.id); // Collect all hotel IDs
-        console.log("Processing hotel IDs: ", hotelIds);
+        const hotelIds = hotels.map(hotel => ({
+            id: hotel.id,
+            price: hotel.rates[0]?.daily_prices[0] || 0 // Handle the case where daily_prices might be undefined
+        }));
+        // console.log("Processing hotel IDs: ", hotelIds);
         await fetchHotelDetails(hotelIds); // Pass all IDs at once
     };
         
@@ -381,39 +384,51 @@ const Search = () => {
         //     await retryFetchHotelDetails(hotelId, index, 1, price);
         // };
 
-        const fetchHotelDetails = async (hotelIds: string[], language: string = "en") => {
+        const fetchHotelDetails = async (hotelData: { id: string, price: number }[], language: string = "en") => {
             try {
-                console.log("Hotel ID in fetchHotelDetails: ", hotelId);
+                const hotelIds = hotelData.map(hotel => hotel.id);
+                console.log("Hotel IDs in fetchHotelDetails: ", hotelIds);
                 const response = await axios.post(`http://localhost:3002/hotels/details`, {
                     hotelIds,
                     language
                 });
-                const data = response.data.data; 
         
-                console.log(data.room_groups);
-
-                const details = {
-                    id: data.id,
-                    name: data.name,
-                    address: data.address,
-                    starRating: data.star_rating,
-                    amenities: data.amenity_groups.flatMap((group: { amenities: any; }) => group.amenities),
-                    price: price, 
-                    images: data.images,
-                    description: data.description_struct.map((item: { paragraphs: any[]; }) => item.paragraphs.join(' ')).join('\n\n'),
-                    main_name: data.room_groups.map((group: { name_struct: { main_name: any; }; }) => group.name_struct.main_name),
-                    room_images: data.room_groups.map((group: { images: string | any[]; }) => group.images.length > 0 ? group.images[0].replace('{size}', '240x240') : null)
-                };
+                console.log("Full response:", response.data);
         
-                console.log("Details: ", details);
+                const data = response.data;
+                if (Array.isArray(data)) {
+                    const allHotelDetails = data.map((hotel: any, index: number) => {
+                        const hotelDataResponse = hotel.data; // Adjust this based on the actual structure
+                        const price = hotelData[index]?.price || 0; // Get the corresponding price
+                        if (hotelDataResponse) {
+                            return {
+                                id: hotelDataResponse.id,
+                                name: hotelDataResponse.name,
+                                address: hotelDataResponse.address,
+                                starRating: hotelDataResponse.star_rating,
+                                amenities: hotelDataResponse.amenity_groups?.flatMap((group: { amenities: any; }) => group.amenities) || [],
+                                price: price,
+                                images: hotelDataResponse.images || [],
+                                description: hotelDataResponse.description_struct?.map((item: { paragraphs: any[]; }) => item.paragraphs.join(' ')).join('\n\n') || '',
+                                main_name: hotelDataResponse.room_groups?.map((group: { name_struct: { main_name: any; }; }) => group.name_struct.main_name) || [],
+                                room_images: hotelDataResponse.room_groups?.map((group: { images: string | any[]; }) => group.images.length > 0 ? group.images[0].replace('{size}', '240x240') : null) || []
+                            };
+                        } else {
+                            console.error('Unexpected response structure for hotel:', hotel);
+                            return null;
+                        }
+                    }).filter((details): details is HotelDetails => details !== null);
         
-                setHotelDetails(prevDetails => [...prevDetails, details]);
-        
-                console.log("Details for hotel", hotelId, details);
+                    console.log("All Hotel Details: ", allHotelDetails);
+                    setHotelDetails(prevDetails => [...prevDetails, ...allHotelDetails]);
+                } else {
+                    console.error('Unexpected response structure:', data);
+                }
             } catch (error) {
                 console.error('Failed to fetch hotel details:', error);
             }
-        };       
+        };
+        
         
         
         // const retryFetchHotelDetails = async (hotelId: any, index: number, attempt: number, price: any) => {
