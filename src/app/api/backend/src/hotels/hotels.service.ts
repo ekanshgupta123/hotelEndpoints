@@ -36,15 +36,15 @@ export class HotelsService {
         }
     }
 
-    async fetchDetailsForMultipleHotels(hotelIds: string[], language: string): Promise<any[]> {
-        const requests = hotelIds.map(hotelId => 
-            this.fetchHotelDetails(hotelId, language)
-        );
+    // async fetchDetailsForMultipleHotels(hotelIds: string[], language: string): Promise<any[]> {
+    //     const requests = hotelIds.map(hotelId => 
+    //         this.fetchHotelDetails(hotelId, language)
+    //     );
 
-        return Promise.allSettled(requests).then(results =>
-            results.map(result => result.status === 'fulfilled' ? result.value : { error: result.reason })
-        );
-    }
+    //     return Promise.allSettled(requests).then(results =>
+    //         results.map(result => result.status === 'fulfilled' ? result.value : { error: result.reason })
+    //     );
+    // }
 
     async fetchHotelDetails(hotelId: string, language: string): Promise<any> {
         const url = `https://api.worldota.net/api/b2b/v3/hotel/info/`;
@@ -68,6 +68,56 @@ export class HotelsService {
                 return throwError(new HttpException('Failed to fetch hotel details', HttpStatus.INTERNAL_SERVER_ERROR));
             })
         ).toPromise();
+    }
+
+
+    async fetchDetailsForMultipleHotels(params: { checkin: string; checkout: string; residency: string; language: string; guests: any[]; ids: string[]; currency: string }): Promise<any[]> {
+        const keyId = this.configService.get<string>('KEY_ID');
+        const apiKey = this.configService.get<string>('API_KEY');
+        
+        console.log("Fetching hotel details...");
+        
+        const { checkin, checkout, residency, language, guests, ids, currency } = params;
+
+        const formattedCheckin = this.convertToISO8601Format(checkin);
+        const formattedCheckout = this.convertToISO8601Format(checkout);
+
+        guests.forEach((guest: any) => {
+            const childrenAges = guest.children.map((child: { age: number }) => child.age);
+            console.log(childrenAges);
+        });
+
+        const requestBody = {
+            checkin: formattedCheckin,
+            checkout: formattedCheckout,
+            residency,
+            language,
+            guests: guests.map(guest => ({
+                adults: guest.adults,
+                children: guest.children.map((child: { age: number }) => child.age)
+            })),
+            ids,
+            currency
+        };
+
+        console.log("Request Body:", JSON.stringify(requestBody, null, 2));  
+
+        const headers = {
+            "Content-Type": "application/json",
+            "Authorization": `Basic ${Buffer.from(`${keyId}:${apiKey}`).toString('base64')}`
+        };
+
+        console.log("Request Headers:", JSON.stringify(headers, null, 2)); 
+
+        return this.httpService.post('https://api.worldota.net/api/b2b/v3/search/serp/hotels/', requestBody, { headers })
+            .pipe(
+                map(response => response.data),
+                catchError((error) => {
+                    console.error('Error in fetchDetailsForMultipleHotels:', error.response?.data || error.message);
+                    return throwError(new HttpException('Failed to fetch hotel details', HttpStatus.INTERNAL_SERVER_ERROR));
+                })
+            )
+            .toPromise();
     }
 
     async searchHotels(searchParams: any): Promise<any> {

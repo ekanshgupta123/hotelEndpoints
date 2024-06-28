@@ -18,10 +18,20 @@ export class HotelsController {
         }
     }
 
+
+
+    // @Post('details')
+    // async fetchDetailsForMultipleHotels(@Body() body: { hotelIds: string[], language: string }): Promise<any[]> {
+    //     console.log("Incoming hotel IDs: ", body.hotelIds);
+    //     return await this.hotelsService.fetchDetailsForMultipleHotels(body.hotelIds, body.language);
+    // }
+
+
     @Post('details')
-    async fetchDetailsForMultipleHotels(@Body() body: { hotelIds: string[], language: string }): Promise<any[]> {
-        console.log("Incoming hotel IDs: ", body.hotelIds);
-        return await this.hotelsService.fetchDetailsForMultipleHotels(body.hotelIds, body.language);
+    async fetchDetailsForMultipleHotels(@Body() body: { checkin: string, checkout: string, residency: string, language: string, guests: any[], ids: string[], currency: string }): Promise<any[]> {
+        console.log("Incoming details request:", body);
+        const { checkin, checkout, residency, language, guests, ids, currency } = body;
+        return await this.hotelsService.fetchDetailsForMultipleHotels({ checkin, checkout, residency, language, guests, ids, currency });
     }
         
     @Post('rooms') 
