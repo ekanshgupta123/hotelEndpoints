@@ -62,17 +62,74 @@
 // export default HotelDisplay;
 
 
-import React from 'react';
+// import React from 'react';
+// import '../styles/HotelDisplay.css';
+
+// interface HotelDetails {
+//     id: string;
+//     price: number;
+// }
+
+// interface HotelDisplayProps {
+//     hotel: HotelDetails;
+//     searchParams: HotelSearchParams
+// }
+
+// interface HotelSearchParams {
+//     checkin: string;
+//     checkout: string;
+//     residency: string;
+//     language: string;
+//     guests: {
+//         adults: number;
+//         children: {
+//             age: number;
+//         }[];
+//     }[];
+//     region_id: number | null;
+//     currency: string;
+// }
+
+// const HotelDisplay: React.FC<HotelDisplayProps> = ({ hotel, searchParams }) => {
+//         const handleCardClick = (hotelId: string, hotelData: HotelDetails, searchParams: HotelSearchParams) => {
+//         localStorage.setItem('currentHotelData', JSON.stringify(hotelData));
+//         localStorage.setItem('searchParams', JSON.stringify(searchParams));
+//         window.open(`/hotel/${hotelId}`, '_blank');
+//     };
+
+
+//     return (
+//         <div className="hotel-item" onClick={() => handleCardClick(hotel.id, hotel, searchParams)}>
+//             <h3>{hotel.id}</h3>
+//             {/* <p>{hotel.address}</p> */}
+//             {/* <div className="rating">{Array(hotel.starRating).fill('⭐').join('')}</div> */}
+//             <p className="price"> ${hotel.price}</p>
+//             {/* <div className="hotel-images">
+//                 <img key={image} src={imageResult} alt={`View of ${hotel.name}`} />
+//             </div> */}
+//         </div>
+//     );
+// };
+
+// export default HotelDisplay;
+
+
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import '../styles/HotelDisplay.css';
 
 interface HotelDetails {
     id: string;
     price: number;
+    name?: string;
+    address?: string;
+    starRating?: number;
+    images?: string[];
 }
 
 interface HotelDisplayProps {
     hotel: HotelDetails;
-    searchParams: HotelSearchParams
+    searchParams: HotelSearchParams;
 }
 
 interface HotelSearchParams {
@@ -91,22 +148,44 @@ interface HotelSearchParams {
 }
 
 const HotelDisplay: React.FC<HotelDisplayProps> = ({ hotel, searchParams }) => {
-        const handleCardClick = (hotelId: string, hotelData: HotelDetails, searchParams: HotelSearchParams) => {
+    const [hotelDetails, setHotelDetails] = useState<HotelDetails | null>(null);
+
+    useEffect(() => {
+        const fetchHotelDetails = async () => {
+            try {
+                console.log("im here");
+                const response = await axios.get(`http://localhost:3002/api/info/${hotel.id}`);
+                console.log("Hotel data:", response.data);
+                setHotelDetails(response.data);
+            } catch (error) {
+                console.error('Error fetching hotel details:', error);
+            }
+        };
+
+        fetchHotelDetails();
+    }, [hotel.id]);
+
+    const handleCardClick = (hotelId: string, hotelData: HotelDetails, searchParams: HotelSearchParams) => {
         localStorage.setItem('currentHotelData', JSON.stringify(hotelData));
         localStorage.setItem('searchParams', JSON.stringify(searchParams));
         window.open(`/hotel/${hotelId}`, '_blank');
     };
 
+    if (!hotelDetails) {
+        return <div>Loading...</div>;
+    }
 
     return (
-        <div className="hotel-item" onClick={() => handleCardClick(hotel.id, hotel, searchParams)}>
-            <h3>{hotel.id}</h3>
-            {/* <p>{hotel.address}</p> */}
-            {/* <div className="rating">{Array(hotel.starRating).fill('⭐').join('')}</div> */}
-            <p className="price"> ${hotel.price}</p>
-            {/* <div className="hotel-images">
-                <img key={image} src={imageResult} alt={`View of ${hotel.name}`} />
-            </div> */}
+        <div className="hotel-item" onClick={() => handleCardClick(hotel.id, hotelDetails, searchParams)}>
+            <h3>{hotelDetails.name}</h3>
+            <p>{hotelDetails.address}</p>
+            <div className="rating">{Array(hotelDetails.starRating).fill('⭐').join('')}</div>
+            <p className="price"> ${hotelDetails.price}</p>
+            <div className="hotel-images">
+                {hotelDetails.images?.map((image, index) => (
+                    <img key={index} src={image} alt={`View of ${hotelDetails.name}`} />
+                ))}
+            </div>
         </div>
     );
 };
