@@ -105,6 +105,9 @@ const Search = () => {
     const [error, setError] = useState<string | null>(null);
     const [hotelDetails, setHotelDetails] = useState<HotelDetails[]>([]);
     const [children, setChildren] = useState<Child[]>([]);
+    const [displayedHotels, setDisplayedHotels] = useState<HotelDetails[]>([]);
+    const [totalHotels, setTotalHotels] = useState(0);
+    const [displayedHotelCount, setDisplayedHotelCount] = useState(0); // New state for tracking displayed hotels
 
     const incrementAdults = (e: { preventDefault: () => void; }) => {
         e.preventDefault();
@@ -189,6 +192,9 @@ const Search = () => {
         console.log("Loading...");
         setIsLoading(true);
         setError(null);
+        setDisplayedHotels([]); 
+        setDisplayedHotelCount(0); 
+        setTotalHotels(0); 
 
         if (cancelTokenRef.current) {
             cancelTokenRef.current.cancel("Canceled due to new request");
@@ -222,11 +228,13 @@ const Search = () => {
                 console.log("Full response data:", response.data.data.hotels);
                 const hotels = response.data.data.hotels;
                 console.log("Total hotels found: ", hotels.length);
+                setTotalHotels(hotels.length); 
                 await processHotels(hotels);
                 setHotels(hotels);
             } else {
                 console.log("No hotels data found");
                 setHotels([]);
+                setTotalHotels(0); 
             }
         } catch (error) {
             handleErrors(error);
@@ -264,6 +272,8 @@ const Search = () => {
         return chunks;
     };
 
+    const [hotelPrices, setHotelPrices] = useState<{ [key: string]: number }>({});
+
     const fetchHotelDetails = async (hotelData: { id: string, price: number }[], language: string = "en") => {
         try {
             const hotelIds = hotelData.map(hotel => hotel.id);
@@ -277,6 +287,7 @@ const Search = () => {
 
             for (const chunk of hotelIdChunks) {
                 console.log("Processing chunk:", chunk);
+                const startTime = performance.now();
                 const response = await axios.post(`http://localhost:3002/hotels/details`, {
                     checkin: searchParams.checkInDate,
                     checkout: searchParams.checkOutDate,
@@ -286,12 +297,41 @@ const Search = () => {
                     ids: chunk,
                     currency: "USD"
                 });
+                const endTime = performance.now();
+                const elapsedTime = (endTime - startTime) / 1000;
+                console.log(`Chunk processed in ${elapsedTime.toFixed(2)} seconds`);
+
                 console.log("Response data:", response.data.data);
 
                 if (Array.isArray(response.data.data)) {
-                    setHotelDetails(prevDetails => [...prevDetails, ...response.data.data]);
+                    const flatData = response.data.data.flat();
+                    console.log("Flat data: ", flatData);
+                    setHotelDetails(prevDetails => [...prevDetails, ...flatData]);
+                    setDisplayedHotelCount(prevCount => prevCount + flatData.length); 
                 } else if (typeof response.data.data === 'object' && response.data.data !== null) {
-                    setHotelDetails(prevDetails => [...prevDetails, response.data.data]);
+                    const hotels = response.data.data.hotels;
+                    const prices = hotels.reduce((acc: { [key: string]: number }, hotel: any) => {
+                        if (hotel && hotel.id && hotel.rates) {
+                            for (let i = 0; i < hotel.rates.length; i++) {
+                                if (hotel.rates[i] && hotel.rates[i].daily_prices && hotel.rates[i].daily_prices[0]) {
+                                    console.log("Rates for daily prices: ", hotel.rates[i].daily_prices[0]);
+                                    acc[hotel.id] = hotel.rates[i].daily_prices[0];
+                                    console.log("acc: ", acc[hotel.id]);
+                                    break;
+                                }
+                            }
+                        }
+                        return acc;
+                    }, {});
+                    console.log("price: ", prices);
+                    const updatedData = {
+                        ...response.data.data,
+                        price: response.data.data.hotels[0].rates[0].daily_prices[0]
+                    };
+                    setHotelDetails(prevDetails => [...prevDetails, updatedData]);
+                    setHotelPrices(prevPrices => ({ ...prevPrices, ...prices }));
+                    console.log("HotelDetail: " , hotelDetails);
+                    setDisplayedHotelCount(prevCount => prevCount + chunk.length); 
                 } else {
                     console.error("Unexpected response data format:", response.data.data);
                 }
@@ -329,6 +369,10 @@ const Search = () => {
 
     const today = new Date().toISOString().split('T')[0];
     const minCheckOutDate = searchParams.checkInDate ? new Date(new Date(searchParams.checkInDate).getTime() + 86400000).toISOString().split('T')[0] : today;
+
+    useEffect(() => {
+        setDisplayedHotels(hotelDetails.flat());
+    }, [hotelDetails]);
 
     return (
         <div className="main-wrapper">
@@ -397,11 +441,25 @@ const Search = () => {
                     </Alert>
                 )}
                 <div className="hotel-list-container">
-                    {/* <h2>All Hotel IDs:</h2> */}
-                    {hotelDetails.map((hotelDetail, hotelDetailIndex) => (
+                    <h2>Displaying {displayedHotelCount} out of {totalHotels} hotels</h2>
+                    {displayedHotels.map((hotelDetail, hotelDetailIndex) => (
                         <div key={hotelDetailIndex}>
-                            {hotelDetail.hotels && hotelDetail.hotels.map((hotel: { id: string; rates: { daily_prices: number[] }[] }, hotelIndex: number) => (
-                                <HotelDisplay key={hotel.id || hotelIndex} hotel={{ id: hotel.id, price: hotel.rates[0].daily_prices[0] }} searchParams={hotelSearchParams}/>
+                            {hotelDetail.hotels && hotelDetail.hotels.map((hotel: any, hotelIndex: number) => (
+                                <HotelDisplay
+                                    key={hotel.id || hotelIndex}
+                                    hotel={{
+                                        id: hotel.id,
+                                        price: hotelPrices[hotel.id],
+                                        name: hotel.name,
+                                        address: hotel.address,
+                                        star_rating: hotel.star_rating,
+                                        images: hotel.images,
+                                        amenity_groups: hotel.amenity_groups,
+                                        description_struct: hotel.description_struct,
+                                        room_groups: hotel.room_groups
+                                    }}
+                                    searchParams={hotelSearchParams}
+                                />
                             ))}
                         </div>
                     ))}
