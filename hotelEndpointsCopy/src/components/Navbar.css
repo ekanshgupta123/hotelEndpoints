@@ -1,0 +1,50 @@
+.header {
+    position: fixed;
+    margin-right: auto;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px 5%;
+    background: white; 
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+}
+
+.logo {
+    font-size: 32px;
+    color: navy;
+    font-weight: 700;
+}
+
+.navbar a {
+    position: relative;
+    font-size: 18px;
+    color: black;
+    font-weight: 500;
+    margin-left: 50px;
+}
+
+.navbar a::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: blue;
+    transition: .3s;
+}
+
+.navbar a:hover::before {
+    width: 100%;
+}
+
+.userButton {
+    margin-left: 5%;
+    padding: 9px;
+    font-size: 22px;
+    width: 300px;
+}
+

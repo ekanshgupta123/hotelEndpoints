@@ -1,0 +1,173 @@
+.hotel-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.hotel-images img {
+    width: 100%;
+    max-width: 240px;
+    height: auto;
+    margin-right: 10px;
+}
+
+.hotel-details {
+    display: flex;
+    justify-content: space-between;
+}
+
+.hotel-info, .hotel-amenities {
+    flex: 1;
+    margin-right: 20px;
+}
+
+.amenities li {
+    list-style-type: none;
+    padding: 5px 0;
+}
+
+.subtitle {
+    color: #666;
+    font-size: 16px;
+}
+
+.rating {
+    font-weight: bold;
+    color: #4CAF50;
+}
+
+.hotel-info h2, .hotel-amenities h2 {
+    color: #333;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+}
+.hotel-container {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    min-height: 100vh;
+    overflow: auto;  
+}
+
+.room-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Creates as many columns as needed with a min width of 250px */
+    gap: 20px; /* Space between cards */
+    padding: 20px; /* Padding around the grid */
+}
+.room-card {
+    border: 1px solid #ccc;
+    padding: 20px;
+    background-color: #fff; /* Optional: for better visibility */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.hotel-header, .hotel-images, .hotel-details, .room-container {
+    margin-bottom: 20px;
+}
+
+.hotel-item {
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for the scaling effect and box-shadow */
+    cursor: pointer; /* Change cursor to pointer to indicate clickability */
+}
+
+.hotel-item:hover {
+    box-shadow: 0 10px 8px rgba(0, 0, 0, 0.2); /* Add a shadow for better visibility */
+}
+
+.hotel-card {
+    display: flex;
+    border: 1px solid #ccc;
+    padding: 20px;
+    margin-bottom: 20px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    align-items: flex-start;
+    max-width: 1000px;
+    width: 100%; 
+    margin-left: 0; 
+}
+
+
+.hotel-card:hover {
+    box-shadow: 0 10px 8px rgba(0, 0, 0, 0.2);
+}
+
+.additional-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #777;
+  }
+
+
+.hotel-image {
+    width: 150px;
+    height: auto;
+    margin-right: 20px;
+}
+
+.hotel-info {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-grow: 1;
+  }
+  
+
+.hotel-header {
+    margin-bottom: 10px;
+}
+
+.hotel-name {
+    font-size: 18px;
+    margin: 0;
+}
+
+.hotel-address {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+}
+
+.hotel-name {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.show-all-rooms-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    text-align: center;
+    align-self: flex-end; 
+}
+
+.show-all-rooms-button:hover {
+    background-color: #0056b3;
+}
+
+.price-info {
+    margin-bottom: 10px;
+}
+  
+.hotel-price {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+}
+
+.room-info {
+    margin-bottom: 10px;
+  }
+  
+  .room-type {
+    font-size: 16px;
+    color: #333;
+  }
+  
